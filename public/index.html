@@ -548,6 +548,9 @@
         <button class="btn-primary" onclick="startNew()">
           <i class="fas fa-plus"></i> Nueva entrada
         </button>
+        <button class="btn-secondary" onclick="downloadWord()" id="downloadBtn">
+          <i class="fas fa-download"></i> Descargar Word
+        </button>
       </div>
 
       <div class="search-box">
@@ -1085,6 +1088,37 @@
       };
       if (id === 'otro' && otro) return otro;
       return perfiles[id] || id;
+    }
+
+    async function downloadWord() {
+      try {
+        const btn = document.getElementById('downloadBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Descargando...';
+        btn.disabled = true;
+
+        const response = await fetch('/api/download');
+        if (!response.ok) throw new Error('Error descargando');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Diario_Observaciones_${new Date().toISOString().split('T')[0]}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        console.log('✓ Word descargado');
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Error descargando. Intenta de nuevo.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
   </script>
 </body>

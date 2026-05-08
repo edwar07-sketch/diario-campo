@@ -15,16 +15,6 @@ app.use(express.static('public'));
 
 // Rutas
 const DATA_FILE = path.join(__dirname, 'entries.json');
-const ONEDRIVE_PATH = path.normalize('C:\\Users\\edwar\\OneDrive\\Doc Tesis\\Resultados\\Datos Organizados\\Cualitativos\\Observación');
-const OUTPUT_FILE = path.join(ONEDRIVE_PATH, 'Diario_Observaciones.docx');
-
-// Inicializar carpeta de OneDrive
-function ensureOneDriveDir() {
-  if (!fs.existsSync(ONEDRIVE_PATH)) {
-    fs.mkdirSync(ONEDRIVE_PATH, { recursive: true });
-    console.log(`✓ Carpeta creada: ${ONEDRIVE_PATH}`);
-  }
-}
 
 // Leer entradas
 function readEntries() {
@@ -299,12 +289,7 @@ app.post('/api/entries', async (req, res) => {
     };
     entries.push(newEntry);
     writeEntries(entries);
-
-    // Generar Word
-    ensureOneDriveDir();
-    const buffer = await generateWord(entries);
-    fs.writeFileSync(OUTPUT_FILE, buffer);
-    console.log(`✓ Entrada guardada y Word actualizado: ${OUTPUT_FILE}`);
+    console.log(`✓ Entrada guardada: ${newEntry.id}`);
 
     res.json(newEntry);
   } catch (err) {
@@ -327,12 +312,7 @@ app.put('/api/entries/:id', async (req, res) => {
       updatedAt: new Date().toISOString(),
     };
     writeEntries(entries);
-
-    // Generar Word
-    ensureOneDriveDir();
-    const buffer = await generateWord(entries);
-    fs.writeFileSync(OUTPUT_FILE, buffer);
-    console.log(`✓ Entrada actualizada y Word sincronizado: ${OUTPUT_FILE}`);
+    console.log(`✓ Entrada actualizada: ${req.params.id}`);
 
     res.json(entries[idx]);
   } catch (err) {
@@ -347,12 +327,7 @@ app.delete('/api/entries/:id', async (req, res) => {
     let entries = readEntries();
     entries = entries.filter(e => e.id !== req.params.id);
     writeEntries(entries);
-
-    // Generar Word
-    ensureOneDriveDir();
-    const buffer = await generateWord(entries);
-    fs.writeFileSync(OUTPUT_FILE, buffer);
-    console.log(`✓ Entrada eliminada y Word sincronizado: ${OUTPUT_FILE}`);
+    console.log(`✓ Entrada eliminada: ${req.params.id}`);
 
     res.json({ success: true });
   } catch (err) {
@@ -361,19 +336,35 @@ app.delete('/api/entries/:id', async (req, res) => {
   }
 });
 
+// GET /api/download — descargar Word con todas las entradas
+app.get('/api/download', async (req, res) => {
+  try {
+    const entries = readEntries();
+    const buffer = await generateWord(entries);
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="Diario_Observaciones_${new Date().toISOString().split('T')[0]}.docx"`);
+    res.send(buffer);
+    
+    console.log(`✓ Word descargado: ${entries.length} entradas`);
+  } catch (err) {
+    console.error('Error descargando Word:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============================================================================
 // INICIAR SERVIDOR
 // ============================================================================
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('\n╔════════════════════════════════════════════════╗');
   console.log('║     DIARIO DE CAMPO — Servidor activo         ║');
   console.log('╠════════════════════════════════════════════════╣');
-  console.log(`║ Abrí en tu navegador: http://localhost:${PORT}     ║`);
+  console.log(`║ URL: http://localhost:${PORT}                  ║`);
+  console.log('║ O desde otro dispositivo: http://[TU_IP]:3000 ║');
   console.log('╠════════════════════════════════════════════════╣');
-  console.log(`║ Carpeta OneDrive: ${ONEDRIVE_PATH.substring(0, 40)}... ║`);
-  console.log('║ Archivo Word: Diario_Observaciones.docx        ║');
+  console.log('║ Descarga: Botón "Descargar Word" en la app    ║');
+  console.log('║ Guarda en: Tu carpeta OneDrive manualmente     ║');
   console.log('╚════════════════════════════════════════════════╝\n');
-
-  ensureOneDriveDir();
 });
